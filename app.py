@@ -80,16 +80,27 @@ with st.sidebar:
     st.subheader("Spending")
     annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_income*(1-savings_rate), step=10000.0, disabled = True)
     expense_growth = st.slider("Expense growth above inflation (% / year)", min_value=0.0, max_value=15.0, value=1.0, step=0.5) / 100.0
-    withdrawal_rate = st.slider("Safe withdrawal rate (%)", min_value=2.5, max_value=6.0, value=4.0, step=0.1) / 100.0
+    
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        withdrawal_rate = st.slider("Safe withdrawal rate (%)", min_value=2.5, max_value=6.0, value=4.0, step=0.1) / 100.0
+    with col2:
+        st.info("ℹ️")
+    st.caption("💡 The percentage of your portfolio you can safely withdraw annually. The 4% rule assumes a 30-year retirement. Lower rates (3%) are more conservative; higher rates (4-5%) are more aggressive.", help="Safe Withdrawal Rate")
 
     st.subheader("Allocation of Savings")
     alloc_tfsa = st.slider("TFSA allocation (% of savings)", 0.0, 100.0, 50.0, 1.0)
+    st.caption("💡 Tax-Free Savings Account: Annual limit R36,000 | Lifetime limit R500,000. Growth and withdrawals are tax-free.", help="TFSA Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * savings_rate * annual_income/12:,.2f}")
+    
     alloc_ra = st.slider("RA allocation (% of savings)", 0.0, 100.0, 100 - alloc_tfsa, 1.0)
+    st.caption("💡 Retirement Annuity: Tax-deductible contributions up to 27.5% of income. Funds are locked until retirement.", help="RA Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * savings_rate * annual_income/12:,.2f}")
+    
     alloc_brokerage = st.slider("Brokerage allocation (% of savings)", 0.0, 100.0, 100-(alloc_tfsa + alloc_ra), 1.0)
+    st.caption("💡 Standard Brokerage: Unrestricted investment account. Subject to capital gains tax but flexible access.", help="Brokerage Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly Brokerage amount: ZAR {alloc_brokerage / 100.0 * savings_rate * annual_income/12:,.2f}")
     
