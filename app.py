@@ -86,7 +86,7 @@ with st.sidebar:
     alloc_tfsa = st.slider("TFSA allocation (% of savings)", 0.0, 100.0, 50.0, 1.0)
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * savings_rate * annual_income/12:,.2f}")
-    alloc_ra = st.slider("RA allocation (% of savings)", 0.0, 100.0 - alloc_tfsa, 50.0, 1.0)
+    alloc_ra = st.slider("RA allocation (% of savings)", 0.0, 100.0, 100 - alloc_tfsa, 1.0)
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * savings_rate * annual_income/12:,.2f}")
     alloc_brokerage = st.slider("Brokerage allocation (% of savings)", 0.0, 100.0, 100-(alloc_tfsa + alloc_ra), 1.0)
@@ -113,7 +113,7 @@ with st.sidebar:
         step=0.5,
         disabled=not allow_expected_return_edit,
     ) / 100.0
-    st.info("⚠️ You have no control over this. Invest in broad-based index funds. #NotFinancialAdvice")
+    st.info("Returns are modelled conservatively and are treated as an external uncertainty. The intent is to focus analysis on controllable inputs like savings rate and investment horizon.")
 
 inputs = Inputs(
     current_age=int(current_age),
