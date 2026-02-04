@@ -78,7 +78,7 @@ with st.sidebar:
     income_growth = st.slider("Income growth above inflation (% / year)", min_value=0.0, max_value=15.0, value=4.5, step=0.5) / 100.0
 
     st.subheader("Spending")
-    annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_income*(1-savings_rate), step=10000.0)
+    annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_income*(1-savings_rate), step=10000.0, disabled = True)
     expense_growth = st.slider("Expense growth above inflation (% / year)", min_value=0.0, max_value=15.0, value=1.0, step=0.5) / 100.0
     withdrawal_rate = st.slider("Safe withdrawal rate (%)", min_value=2.5, max_value=6.0, value=4.0, step=0.1) / 100.0
 
