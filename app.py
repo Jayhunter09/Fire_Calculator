@@ -39,6 +39,8 @@ TAX_BRACKETS = [
     (float('inf'), 0.45)
 ]
 
+Tax_Rebate = 18258 # Primary rebate for individuals under 65 (2024/2025)
+
 def calculate_tax(taxable_income: float) -> float:
     """Calculate income tax based on South African tax brackets."""
    
@@ -57,7 +59,9 @@ def calculate_tax(taxable_income: float) -> float:
             tax += (bracket_limit - previous_bracket) * rate
             previous_bracket = bracket_limit
     
-    return tax
+    final_tax = max(0.0, tax - Tax_Rebate)
+
+    return final_tax
 
 
 st.set_page_config(page_title="FIRE Planner", layout="wide")
@@ -86,12 +90,12 @@ with st.sidebar:
     st.caption("💡 The percentage of your portfolio you can safely withdraw annually at retirement. The 4% rule assumes a 30-year retirement. Lower rates (3%) are more conservative; higher rates (4-5%) are more aggressive.", help="Safe Withdrawal Rate")
 
     st.subheader("Allocation of Savings")
-    alloc_tfsa = st.slider("TFSA allocation (% of savings)", 0.0, 100.0, 50.0, 1.0)
+    alloc_tfsa = st.slider("TFSA allocation (% of savings)", 0.0, 36000/(savings_rate * annual_income)*100, 25.0, 1.0)
     st.caption("💡 Tax-Free Savings Account: Annual limit R36,000 | Lifetime limit R500,000. Growth and withdrawals are tax-free.", help="TFSA Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * savings_rate * annual_income/12:,.2f}")
     
-    alloc_ra = st.slider("RA allocation (% of savings)", 0.0, 100.0, 100 - alloc_tfsa, 1.0)
+    alloc_ra = st.slider("RA allocation (% of savings)", 0.0, 0.275/savings_rate*100, 100 - alloc_tfsa, 1.0)
     st.caption("💡 Retirement Annuity: Tax-deductible contributions up to 27.5% of income. Funds are locked until retirement.", help="RA Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * savings_rate * annual_income/12:,.2f}")
@@ -289,10 +293,10 @@ col5, col6, col7, col8 = st.columns(4)
 with col5:
     st.metric("Total Savings", f"ZAR {annual_savings:,.0f}")
 with col6:
-    st.metric("After-Tax Expenses", f"ZAR {after_tax_expenses:,.0f}")
+    st.metric("After-Tax and Investing Expenses", f"ZAR {after_tax_expenses:,.0f}")
 
 with col7:
-    st.metric("Monthly after-Tax Expenses", f"ZAR {after_tax_expenses / 12:,.0f}")
+    st.metric("Monthly after-Tax and Investing Expenses", f"ZAR {after_tax_expenses / 12:,.0f}")
 with col8:
     effective_tax_rate = (income_tax / inputs.annual_income * 100) if inputs.annual_income > 0 else 0
     st.metric("Effective Tax Rate", f"{effective_tax_rate:.1f}%")
