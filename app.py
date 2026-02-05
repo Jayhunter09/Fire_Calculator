@@ -219,56 +219,53 @@ if not crossing.empty:
 else:
     st.info("Financial Independence not reached by the target retirement age.")
 
-left, right = st.columns(2)
+st.subheader("Net Worth vs FIRE Number")
+chart_df = df[["Age", "NetWorth", "FireNumber"]].melt(
+    "Age", var_name="Series", value_name="Value"
+)
+chart_df["ValueDisplay"] = chart_df["Value"].apply(format_number)
 
-with left:
-    st.subheader("Net Worth vs FIRE Number")
-    chart_df = df[["Age", "NetWorth", "FireNumber"]].melt(
-        "Age", var_name="Series", value_name="Value"
-    )
-    chart_df["ValueDisplay"] = chart_df["Value"].apply(format_number)
-    
-    base = alt.Chart(chart_df).encode(
-        x=alt.X("Age:Q", title="Age"),
-        y=alt.Y("Value:Q", title="Value (ZAR)"),
-        color=alt.Color("Series:N", title="Series"),
-    )
-    
-    lines = base.mark_line()
-    points = base.mark_point(opacity=0).encode(
-        tooltip=[
-            alt.Tooltip("Age:Q", title="Age"),
-            alt.Tooltip("Series:N", title="Series"),
-            alt.Tooltip("ValueDisplay:N", title="Value (ZAR)"),
-        ]
-    )
-    
-    net_worth_chart = (lines + points).properties(height=400)
-    st.altair_chart(net_worth_chart, use_container_width=True)
+base = alt.Chart(chart_df).encode(
+    x=alt.X("Age:Q", title="Age"),
+    y=alt.Y("Value:Q", title="Value (ZAR)"),
+    color=alt.Color("Series:N", title="Series"),
+)
 
-with right:
-    st.subheader("Account Balances")
-    account_cols = ["Age"] + [f"{name}_Balance" for name in ACCOUNT_NAMES]
-    accounts_df = df[account_cols].melt("Age", var_name="Account", value_name="Value")
-    accounts_df["ValueDisplay"] = accounts_df["Value"].apply(format_number)
+lines = base.mark_line()
+points = base.mark_point(opacity=0).encode(
+    tooltip=[
+        alt.Tooltip("Age:Q", title="Age"),
+        alt.Tooltip("Series:N", title="Series"),
+        alt.Tooltip("ValueDisplay:N", title="Value (ZAR)"),
+    ]
+)
+
+net_worth_chart = (lines + points).properties(height=400)
+st.altair_chart(net_worth_chart, use_container_width=True)
+
+# with right:
+#     st.subheader("Account Balances")
+#     account_cols = ["Age"] + [f"{name}_Balance" for name in ACCOUNT_NAMES]
+#     accounts_df = df[account_cols].melt("Age", var_name="Account", value_name="Value")
+#     accounts_df["ValueDisplay"] = accounts_df["Value"].apply(format_number)
     
-    base = alt.Chart(accounts_df).encode(
-        x=alt.X("Age:Q", title="Age"),
-        y=alt.Y("Value:Q", title="Balance (ZAR)"),
-        color=alt.Color("Account:N", title="Account"),
-    )
+#     base = alt.Chart(accounts_df).encode(
+#         x=alt.X("Age:Q", title="Age"),
+#         y=alt.Y("Value:Q", title="Balance (ZAR)"),
+#         color=alt.Color("Account:N", title="Account"),
+#     )
     
-    lines = base.mark_line()
-    points = base.mark_point(opacity=0).encode(
-        tooltip=[
-            alt.Tooltip("Age:Q", title="Age"),
-            alt.Tooltip("Account:N", title="Account"),
-            alt.Tooltip("ValueDisplay:N", title="Balance (ZAR)"),
-        ]
-    )
+#     lines = base.mark_line()
+#     points = base.mark_point(opacity=0).encode(
+#         tooltip=[
+#             alt.Tooltip("Age:Q", title="Age"),
+#             alt.Tooltip("Account:N", title="Account"),
+#             alt.Tooltip("ValueDisplay:N", title="Balance (ZAR)"),
+#         ]
+#     )
     
-    balances_chart = (lines + points).properties(height=400)
-    st.altair_chart(balances_chart, use_container_width=True)
+#     balances_chart = (lines + points).properties(height=400)
+#     st.altair_chart(balances_chart, use_container_width=True)
 
 # Tax and Expenses Summary
 st.subheader("Initial Tax & Expenses Summary")
