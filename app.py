@@ -241,7 +241,7 @@ points = base.mark_point(opacity=0).encode(
 )
 
 net_worth_chart = (lines + points).properties(height=400)
-st.altair_chart(net_worth_chart, use_container_width=True)
+st.altair_chart(net_worth_chart, width='stretch')
 
 # with right:
 #     st.subheader("Account Balances")
@@ -321,4 +321,4 @@ st.subheader("Projection Table")
 format_cols = {col: format_number for col in df.columns if col not in ["Age", "Year", "Savings Rate"]}
 format_cols["Savings Rate"] = "{:.1f}%".format
 styled_df = df.style.format(format_cols)
-st.dataframe(styled_df, use_container_width=True)
+st.dataframe(styled_df, width = 'stretch')
