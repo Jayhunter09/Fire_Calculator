@@ -156,6 +156,9 @@ def project(inputs: Inputs) -> pd.DataFrame:
     rows: List[Dict[str, float]] = []
 
     balances = inputs.current_balances.copy()
+    # Track cumulative TFSA contributions separately (growth doesn't count against contribution limit)
+    # Assumes current TFSA balance represents cumulative contributions to date
+    tfsa_cumulative_contributions = inputs.current_balances.get("TFSA", 0.0)
     income = inputs.annual_income
     expenses = inputs.annual_expenses
 
@@ -184,13 +187,17 @@ def project(inputs: Inputs) -> pd.DataFrame:
             name: annual_savings * inputs.allocation.get(name, 0.0) for name in ACCOUNT_NAMES
         }
 
-        tfsa_remaining_lifetime = max(0.0, TFSA_LIFETIME_CAP - balances.get("TFSA", 0.0))
+        # Calculate remaining TFSA room based on cumulative contributions (not balance)
+        tfsa_remaining_lifetime = max(0.0, TFSA_LIFETIME_CAP - tfsa_cumulative_contributions)
         tfsa_allowed = min(TFSA_ANNUAL_CAP, tfsa_remaining_lifetime)
         tfsa_contribution = min(contributions["TFSA"], tfsa_allowed)
         tfsa_excess = contributions["TFSA"] - tfsa_contribution
 
         contributions["TFSA"] = tfsa_contribution
         contributions["Brokerage"] += tfsa_excess
+        
+        # Track cumulative TFSA contributions
+        tfsa_cumulative_contributions += tfsa_contribution
 
         for name in ACCOUNT_NAMES:
             balances[name] = (balances[name] + contributions.get(name, 0.0)) * (1 + inputs.expected_return)
