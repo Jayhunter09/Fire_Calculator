@@ -290,10 +290,10 @@ col5, col6, col7, col8 = st.columns(4)
 with col5:
     st.metric("Total Savings", f"ZAR {annual_savings:,.0f}")
 with col6:
-    st.metric("After-Tax and Investing Expenses", f"ZAR {after_tax_expenses:,.0f}")
+    st.metric("After-Tax and Investing Income", f"ZAR {after_tax_expenses:,.0f}")
 
 with col7:
-    st.metric("Monthly after-Tax and Investing Expenses", f"ZAR {after_tax_expenses / 12:,.0f}")
+    st.metric("Monthly after-Tax and Investing Income", f"ZAR {after_tax_expenses / 12:,.0f}")
 with col8:
     effective_tax_rate = (income_tax / inputs.annual_income * 100) if inputs.annual_income > 0 else 0
     st.metric("Effective Tax Rate", f"{effective_tax_rate:.1f}%")
