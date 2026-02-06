@@ -288,7 +288,7 @@ with col4:
 
 col5, col6, col7, col8 = st.columns(4)
 with col5:
-    st.metric("Total Savings", f"ZAR {annual_savings:,.0f}")
+    st.metric("Total Invested", f"ZAR {annual_savings:,.0f}")
 with col6:
     st.metric("After-Tax and Investing Income", f"ZAR {after_tax_expenses:,.0f}")
 
