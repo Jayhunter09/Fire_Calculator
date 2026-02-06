@@ -301,8 +301,9 @@ with col8:
 # Retirement year Tax and Expenses Summary
 st.subheader("Retirement Year Tax & Expenses Summary")
 retirement_row = df[df["Age"] == inputs.retirement_age].iloc[0]
+retirement_net_worth = retirement_row["NetWorth"]
 retirement_fire_number = retirement_row["FireNumber"]
-retirement_expenses = inputs.withdrawal_rate * retirement_fire_number
+retirement_expenses = inputs.withdrawal_rate * retirement_net_worth
 retirement_taxable_income = retirement_expenses
 retirement_income_tax = calculate_tax(retirement_taxable_income)
 retirement_after_tax_income = retirement_expenses - retirement_income_tax
