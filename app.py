@@ -64,6 +64,100 @@ def calculate_tax(taxable_income: float) -> float:
     return final_tax
 
 
+def clamp(value: float, min_value: float, max_value: float) -> float:
+    return max(min_value, min(max_value, float(value)))
+
+
+def sync_from_number(base_key: str, min_value: float, max_value: float) -> None:
+    number_key = f"{base_key}_number"
+    slider_key = f"{base_key}_slider"
+    clamped = clamp(st.session_state[number_key], min_value, max_value)
+    st.session_state[number_key] = clamped
+    st.session_state[slider_key] = clamped
+
+
+def sync_from_slider(base_key: str, min_value: float, max_value: float) -> None:
+    number_key = f"{base_key}_number"
+    slider_key = f"{base_key}_slider"
+    clamped = clamp(st.session_state[slider_key], min_value, max_value)
+    st.session_state[slider_key] = clamped
+    st.session_state[number_key] = clamped
+
+
+def slider_with_number_input(
+    label: str,
+    min_value: float,
+    max_value: float,
+    default_value: float,
+    step: float,
+    key: str,
+    disabled: bool = False,
+    help_text: str | None = None,
+    fixed_value: float | None = None,
+) -> float:
+    slider_key = f"{key}_slider"
+    number_key = f"{key}_number"
+    if max_value < min_value:
+        max_value = min_value
+    fixed_range = math.isclose(min_value, max_value, abs_tol=max(step / 10.0, 1e-9))
+    initial_value = clamp(default_value, min_value, max_value)
+
+    if slider_key not in st.session_state:
+        st.session_state[slider_key] = initial_value
+    if number_key not in st.session_state:
+        st.session_state[number_key] = initial_value
+
+    if fixed_value is not None or fixed_range:
+        locked_value = min_value if fixed_value is None else fixed_value
+        fixed_clamped = clamp(locked_value, min_value, max_value)
+        st.session_state[slider_key] = fixed_clamped
+        st.session_state[number_key] = fixed_clamped
+    else:
+        st.session_state[slider_key] = clamp(st.session_state[slider_key], min_value, max_value)
+        st.session_state[number_key] = clamp(st.session_state[number_key], min_value, max_value)
+        if not math.isclose(st.session_state[slider_key], st.session_state[number_key], abs_tol=max(step / 10.0, 1e-9)):
+            st.session_state[number_key] = st.session_state[slider_key]
+
+    slider_col, input_col = st.columns([3, 1])
+    with slider_col:
+        if fixed_range:
+            st.slider(
+                label,
+                min_value=min_value,
+                max_value=min_value + step,
+                value=min_value,
+                step=step,
+                disabled=True,
+                help=help_text,
+            )
+        else:
+            st.slider(
+                label,
+                min_value=min_value,
+                max_value=max_value,
+                step=step,
+                key=slider_key,
+                disabled=disabled,
+                help=help_text,
+                on_change=sync_from_slider,
+                args=(key, min_value, max_value),
+            )
+    with input_col:
+        st.number_input(
+            f"{label} value",
+            min_value=min_value,
+            max_value=max_value,
+            step=step,
+            key=number_key,
+            disabled=disabled,
+            label_visibility="collapsed",
+            on_change=sync_from_number,
+            args=(key, min_value, max_value),
+        )
+
+    return float(st.session_state[slider_key])
+
+
 st.set_page_config(page_title="FIRE Planner", layout="wide")
 
 st.title("FIRE Net Worth vs FIRE Number")
@@ -78,14 +172,14 @@ with st.sidebar:
 
     st.subheader("Income & Savings")
     annual_income = st.number_input("Annual income (before tax) (ZAR)", min_value=0.0, value=260000.0, step=10000.0)
-    savings_rate = st.slider("Savings rate (% of income)", min_value=0.0, max_value=90.0, value=15.0, step=1.0) / 100.0
-    income_growth = st.slider("Income growth above inflation (% / year)", min_value=0.0, max_value=15.0, value=4.5, step=0.5) / 100.0
+    savings_rate = slider_with_number_input("Savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
+    income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 4.5, 2.5, "income_growth_pct") / 100.0
 
     st.subheader("Spending")
     annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_income*(1-savings_rate), step=10000.0, disabled = True)
-    expense_growth = st.slider("Expense growth above inflation (% / year)", min_value=0.0, max_value=15.0, value=1.0, step=0.5) / 100.0
+    expense_growth = slider_with_number_input("Expense growth above inflation (% / year)", 0.0, 15.0, 1.0, 2., "expense_growth_pct") / 100.0
     
-    withdrawal_rate = st.slider("Safe withdrawal rate (%)", min_value=2.5, max_value=6.0, value=4.0, step=0.1) / 100.0
+    withdrawal_rate = slider_with_number_input("Safe withdrawal rate (%)", 2.5, 6.0, 4.0, 0.1, "withdrawal_rate_pct") / 100.0
     
     st.caption("💡 The percentage of your portfolio you can safely withdraw annually at retirement. The 4% rule assumes a 30-year retirement. Lower rates (3%) are more conservative; higher rates (4-5%) are more aggressive.", help="Safe Withdrawal Rate")
 
@@ -93,37 +187,41 @@ with st.sidebar:
     savings_rate_pct = savings_rate * 100.0
     tfsa_income_cap_pct = (TFSA_ANNUAL_CAP / annual_income * 100.0) if annual_income > 0 else 0.0
     tfsa_slider_max = min(savings_rate_pct, tfsa_income_cap_pct)
-
-    tfsa_key = "alloc_tfsa_pct_income"
-    if tfsa_key not in st.session_state:
-        st.session_state[tfsa_key] = min(25.0, tfsa_slider_max)
-    st.session_state[tfsa_key] = min(max(0.0, float(st.session_state[tfsa_key])), tfsa_slider_max)
-
-    alloc_tfsa = st.slider("TFSA allocation (% of income)", 0.0, tfsa_slider_max, step=1.0, key=tfsa_key)
+    alloc_tfsa = slider_with_number_input(
+        "TFSA allocation (% of income)",
+        0.0,
+        tfsa_slider_max,
+        min(25.0, tfsa_slider_max),
+        1.0,
+        "alloc_tfsa_pct_income",
+    )
     st.caption("💡 Tax-Free Savings Account: Annual limit R46,000 | Lifetime limit R500,000. Growth and withdrawals are tax-free.", help="TFSA Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * annual_income/12:,.2f}")
     
     remaining_after_tfsa = max(0.0, savings_rate_pct - alloc_tfsa)
-    ra_key = "alloc_ra_pct_income"
-    if ra_key not in st.session_state:
-        st.session_state[ra_key] = min(remaining_after_tfsa, 10.0)
-    st.session_state[ra_key] = min(max(0.0, float(st.session_state[ra_key])), remaining_after_tfsa)
-
-    alloc_ra = st.slider("RA allocation (% of income)", 0.0, remaining_after_tfsa, step=1.0, key=ra_key)
+    alloc_ra = slider_with_number_input(
+        "RA allocation (% of income)",
+        0.0,
+        remaining_after_tfsa,
+        min(remaining_after_tfsa, 10.0),
+        1.0,
+        "alloc_ra_pct_income",
+    )
     st.caption("💡 Retirement Annuity: Tax-deductible contributions up to 27.5% of income. Funds are locked until retirement.", help="RA Info")
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * annual_income/12:,.2f}")
     
     remaining_after_ra = max(0.0, savings_rate_pct - (alloc_tfsa + alloc_ra))
-    alloc_brokerage = remaining_after_ra
-    st.slider(
+    alloc_brokerage = slider_with_number_input(
         "Brokerage allocation (% of income)",
         0.0,
         savings_rate_pct,
-        float(alloc_brokerage),
-        step=1.0,
+        remaining_after_ra,
+        1.0,
+        "alloc_brokerage_pct_income",
         disabled=True,
+        fixed_value=remaining_after_ra,
     )
     st.caption("💡 Standard Brokerage: Unrestricted investment account. Subject to capital gains tax but flexible access.", help="Brokerage Info")
     #add a box that shows the value being added to the account based on the allocation
@@ -141,12 +239,13 @@ with st.sidebar:
 
     st.subheader("Assumptions")
     allow_expected_return_edit = st.checkbox("Allow editing expected return", value=False)
-    expected_return = st.slider(
+    expected_return = slider_with_number_input(
         "Expected annual return (after inflation) (%)",
-        min_value=0.0,
-        max_value=20.0,
-        value=3.5,
-        step=0.5,
+        0.0,
+        20.0,
+        3.5,
+        0.5,
+        "expected_return_pct",
         disabled=not allow_expected_return_edit,
     ) / 100.0
     st.info("Returns are modelled conservatively and are treated as an external uncertainty. The intent is to focus analysis on controllable inputs like savings rate and investment horizon.")
