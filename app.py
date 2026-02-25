@@ -190,12 +190,14 @@ def project(inputs: Inputs) -> pd.DataFrame:
         age = inputs.current_age + year_index
         net_worth = sum(balances.values())
         fire_number = expenses / inputs.withdrawal_rate if inputs.withdrawal_rate > 0 else np.nan
+        annual_savings = max(0.0, income - expenses)
+        effective_savings_rate = (annual_savings / income) * 100 if income > 0 else 0.0
 
         rows.append(
             {
                 "Age": age,
                 "Year": year_index,
-                "Savings Rate": ((income - expenses) / income)*100 if income > 0 else 0.0,
+                "Savings Rate": effective_savings_rate,
 
 
 
@@ -206,7 +208,6 @@ def project(inputs: Inputs) -> pd.DataFrame:
             }
         )
 
-        annual_savings = income * inputs.savings_rate
         contributions = {
             name: annual_savings * inputs.allocation.get(name, 0.0) for name in ACCOUNT_NAMES
         }
