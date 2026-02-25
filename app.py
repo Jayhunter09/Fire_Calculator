@@ -25,21 +25,21 @@ class Inputs:
 
 
 ACCOUNT_NAMES = ["TFSA", "RA", "Brokerage"]
-TFSA_ANNUAL_CAP = 36000.0
+TFSA_ANNUAL_CAP = 46000.0
 TFSA_LIFETIME_CAP = 500000.0
 
 # South African tax brackets (2024/2025)
 TAX_BRACKETS = [
-    (237100, 0.18),
-    (370500, 0.26),
-    (512800, 0.31),
-    (673000, 0.36),
-    (857900, 0.39),
-    (1817000, 0.41),
+    (245100, 0.18),
+    (383100, 0.26),
+    (530201, 0.31),
+    (695801, 0.36),
+    (887001, 0.39),
+    (1878601, 0.41),
     (float('inf'), 0.45)
 ]
 
-Tax_Rebate = 18258 # Primary rebate for individuals under 65 (2024/2025)
+Tax_Rebate = 17820 # Primary rebate for individuals under 65 (2024/2025)
 
 def calculate_tax(taxable_income: float) -> float:
     """Calculate income tax based on South African tax brackets."""
@@ -90,25 +90,49 @@ with st.sidebar:
     st.caption("💡 The percentage of your portfolio you can safely withdraw annually at retirement. The 4% rule assumes a 30-year retirement. Lower rates (3%) are more conservative; higher rates (4-5%) are more aggressive.", help="Safe Withdrawal Rate")
 
     st.subheader("Allocation of Savings")
-    alloc_tfsa = st.slider("TFSA allocation (% of savings)", 0.0, 36000/(savings_rate * annual_income)*100, 25.0, 1.0)
-    st.caption("💡 Tax-Free Savings Account: Annual limit R36,000 | Lifetime limit R500,000. Growth and withdrawals are tax-free.", help="TFSA Info")
+    savings_rate_pct = savings_rate * 100.0
+    tfsa_income_cap_pct = (TFSA_ANNUAL_CAP / annual_income * 100.0) if annual_income > 0 else 0.0
+    tfsa_slider_max = min(savings_rate_pct, tfsa_income_cap_pct)
+
+    tfsa_key = "alloc_tfsa_pct_income"
+    if tfsa_key not in st.session_state:
+        st.session_state[tfsa_key] = min(25.0, tfsa_slider_max)
+    st.session_state[tfsa_key] = min(max(0.0, float(st.session_state[tfsa_key])), tfsa_slider_max)
+
+    alloc_tfsa = st.slider("TFSA allocation (% of income)", 0.0, tfsa_slider_max, step=1.0, key=tfsa_key)
+    st.caption("💡 Tax-Free Savings Account: Annual limit R46,000 | Lifetime limit R500,000. Growth and withdrawals are tax-free.", help="TFSA Info")
     #add a box that shows the value being added to the account based on the allocation
-    st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * savings_rate * annual_income/12:,.2f}")
+    st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * annual_income/12:,.2f}")
     
-    alloc_ra = st.slider("RA allocation (% of savings)", 0.0, 0.275/savings_rate*100, 100 - alloc_tfsa, 1.0)
+    remaining_after_tfsa = max(0.0, savings_rate_pct - alloc_tfsa)
+    ra_key = "alloc_ra_pct_income"
+    if ra_key not in st.session_state:
+        st.session_state[ra_key] = min(remaining_after_tfsa, 10.0)
+    st.session_state[ra_key] = min(max(0.0, float(st.session_state[ra_key])), remaining_after_tfsa)
+
+    alloc_ra = st.slider("RA allocation (% of income)", 0.0, remaining_after_tfsa, step=1.0, key=ra_key)
     st.caption("💡 Retirement Annuity: Tax-deductible contributions up to 27.5% of income. Funds are locked until retirement.", help="RA Info")
     #add a box that shows the value being added to the account based on the allocation
-    st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * savings_rate * annual_income/12:,.2f}")
+    st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * annual_income/12:,.2f}")
     
-    alloc_brokerage = st.slider("Brokerage allocation (% of savings)", 0.0, 100.0, 100-(alloc_tfsa + alloc_ra), 1.0)
+    remaining_after_ra = max(0.0, savings_rate_pct - (alloc_tfsa + alloc_ra))
+    alloc_brokerage = remaining_after_ra
+    st.slider(
+        "Brokerage allocation (% of income)",
+        0.0,
+        savings_rate_pct,
+        float(alloc_brokerage),
+        step=1.0,
+        disabled=True,
+    )
     st.caption("💡 Standard Brokerage: Unrestricted investment account. Subject to capital gains tax but flexible access.", help="Brokerage Info")
     #add a box that shows the value being added to the account based on the allocation
-    st.write(f"Monthly Brokerage amount: ZAR {alloc_brokerage / 100.0 * savings_rate * annual_income/12:,.2f}")
+    st.write(f"Monthly Brokerage amount: ZAR {alloc_brokerage / 100.0 * annual_income/12:,.2f}")
     
     st.write(f"Monthly amount invested: ZAR {savings_rate * annual_income/12:,.2f}")
     alloc_total = alloc_tfsa + alloc_ra + alloc_brokerage
-    if not math.isclose(alloc_total, 100.0, abs_tol=0.5):
-        st.warning("Allocations should sum to 100%.")
+    if not math.isclose(alloc_total, savings_rate_pct, abs_tol=0.5):
+        st.warning("Allocation percentages should sum to your savings rate (% of income).")
 
     st.subheader("Current Balances")
     current_tfsa = st.number_input("Current TFSA balance (ZAR)", min_value=0.0, value=0.0, step=10000.0)
@@ -134,9 +158,9 @@ inputs = Inputs(
     annual_income=float(annual_income),
     savings_rate=float(savings_rate),
     allocation={
-        "TFSA": float(alloc_tfsa / 100.0),
-        "RA": float(alloc_ra / 100.0),
-        "Brokerage": float(alloc_brokerage / 100.0),
+        "TFSA": float((alloc_tfsa / 100.0) / savings_rate) if savings_rate > 0 else 0.0,
+        "RA": float((alloc_ra / 100.0) / savings_rate) if savings_rate > 0 else 0.0,
+        "Brokerage": float((alloc_brokerage / 100.0) / savings_rate) if savings_rate > 0 else 0.0,
     },
     current_balances={
         "TFSA": float(current_tfsa),
