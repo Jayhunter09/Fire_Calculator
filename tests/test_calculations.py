@@ -71,6 +71,15 @@ class TestCalculations(unittest.TestCase):
         expected = max(0.0, expected)
         self.assertAlmostEqual(CALC.calculate_tax(taxable_income), expected, places=2)
 
+    def test_calculate_tax_dual_income_scales_brackets_and_rebate(self) -> None:
+        taxable_income = 300_000.0
+        single_tax = CALC.calculate_tax(taxable_income, dual_income=False)
+        dual_tax = CALC.calculate_tax(taxable_income, dual_income=True)
+
+        expected_dual = max(0.0, (taxable_income * 0.18) - (CALC.Tax_Rebate * 2))
+        self.assertAlmostEqual(dual_tax, expected_dual, places=2)
+        self.assertLess(dual_tax, single_tax)
+
     def test_project_tracks_balances_with_tfsa_annual_cap(self) -> None:
         inputs = CALC.Inputs(
             current_age=30,
@@ -116,6 +125,27 @@ class TestCalculations(unittest.TestCase):
         df = CALC.project(inputs)
         self.assertEqual(df.iloc[1]["TFSA_Balance"], 500_000.0)
         self.assertEqual(df.iloc[1]["Brokerage_Balance"], 9_000.0)
+
+    def test_project_dual_income_doubles_tfsa_annual_cap(self) -> None:
+        inputs = CALC.Inputs(
+            current_age=30,
+            retirement_age=31,
+            current_net_worth=0.0,
+            annual_income=200_000.0,
+            savings_rate=1.0,
+            allocation={"TFSA": 1.0, "RA": 0.0, "Brokerage": 0.0},
+            current_balances={"TFSA": 0.0, "RA": 0.0, "Brokerage": 0.0},
+            expected_return=0.0,
+            income_growth=0.0,
+            expense_growth=0.0,
+            annual_expenses=0.0,
+            withdrawal_rate=0.04,
+            dual_income=True,
+        )
+
+        df = CALC.project(inputs)
+        self.assertEqual(df.iloc[1]["TFSA_Balance"], 92_000.0)
+        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 108_000.0)
 
     def test_format_number_truncates_to_nearest_thousand(self) -> None:
         self.assertEqual(CALC.format_number(123_456), "123 000")

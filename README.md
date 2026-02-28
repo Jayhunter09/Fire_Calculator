@@ -76,13 +76,13 @@ pytest -q
 ## Features Explained
 
 ### TFSA Limits (South African)
-- Annual contribution cap: R36,000
+- Annual contribution cap: R46,000
 - Lifetime contribution cap: R500,000
 
 ### Tax Calculations
 Automatically applies South African income tax brackets for 2024/2025:
-- 18% on first R237,100
-- Progressive increases up to 45% on income above R1,817,000
+- 18% on first R245,100
+- Progressive increases up to 45% on income above R1,878,600
 
 ## Currency
 
@@ -94,6 +94,17 @@ All values are in **South African Rand (ZAR)**
 - The safe withdrawal rate assumes you can sustainably withdraw a percentage of your portfolio annually
 - TFSA contributions are capped and cannot exceed the lifetime limit
 - Investment returns and inflation assumptions can be adjusted in the code
+
+## Dual-Income Mode
+
+When **Dual income household** is enabled in the sidebar:
+
+- TFSA annual and lifetime contribution limits are doubled at the household level
+- Tax brackets and the primary tax rebate are doubled for tax calculations
+- This affects initial and retirement tax summaries, after-tax income, and effective tax rate
+- Projection outcomes (including FI timing) can change due to higher TFSA room and reduced tax drag
+
+Current modeling assumption: dual-income mode applies a household-level scaling factor of 2, rather than calculating tax per person separately.
 
 ## License
 

@@ -22,6 +22,7 @@ class Inputs:
     expense_growth: float
     annual_expenses: float
     withdrawal_rate: float
+    dual_income: bool = False
 
 
 ACCOUNT_NAMES = ["TFSA", "RA", "Brokerage"]
@@ -41,17 +42,21 @@ TAX_BRACKETS = [
 
 Tax_Rebate = 17820 # Primary rebate for individuals under 65 (2024/2025)
 
-def calculate_tax(taxable_income: float) -> float:
+def calculate_tax(taxable_income: float, dual_income: bool = False) -> float:
     """Calculate income tax based on South African tax brackets."""
    
 
     if taxable_income <= 0:
         return 0.0
+
+    household_multiplier = 2.0 if dual_income else 1.0
+    scaled_brackets = [(limit * household_multiplier, rate) for limit, rate in TAX_BRACKETS]
+    scaled_rebate = Tax_Rebate * household_multiplier
     
     tax = 0.0
     previous_bracket = 0.0
     
-    for bracket_limit, rate in TAX_BRACKETS:
+    for bracket_limit, rate in scaled_brackets:
         if taxable_income <= bracket_limit:
             tax += (taxable_income - previous_bracket) * rate
             break
@@ -59,7 +64,7 @@ def calculate_tax(taxable_income: float) -> float:
             tax += (bracket_limit - previous_bracket) * rate
             previous_bracket = bracket_limit
     
-    final_tax = max(0.0, tax - Tax_Rebate)
+    final_tax = max(0.0, tax - scaled_rebate)
 
     return final_tax
 
@@ -128,16 +133,78 @@ st.caption("Currency: ZAR")
 
 with st.sidebar:
     st.header("Inputs")
+    dual_income = st.checkbox("Dual income household", value=False)
     current_age = st.number_input("Current age", min_value=18, max_value=90, value=22, step=1)
     retirement_age = st.number_input("Target retirement age", min_value=current_age + 1, max_value=100, value=65, step=1)
 
     st.subheader("Income & Savings")
-    annual_income = st.number_input("Annual income (before tax) (ZAR)", min_value=0.0, value=260000.0, step=10000.0)
-    savings_rate = slider_with_number_input("Initial savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
-    income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 2.5, 0.5, "income_growth_pct") / 100.0
+    if dual_income:
+        annual_income_person_1 = st.number_input(
+            "Annual income - Person 1 (before tax) (ZAR)",
+            min_value=0.0,
+            value=260000.0,
+            step=10000.0,
+        )
+        annual_income_person_2 = st.number_input(
+            "Annual income - Person 2 (before tax) (ZAR)",
+            min_value=0.0,
+            value=260000.0,
+            step=10000.0,
+        )
+        savings_rate_person_1 = slider_with_number_input(
+            "Savings rate - Person 1 (% of income)",
+            0.0,
+            90.0,
+            15.0,
+            1.0,
+            "savings_rate_person_1_pct",
+        ) / 100.0
+        savings_rate_person_2 = slider_with_number_input(
+            "Savings rate - Person 2 (% of income)",
+            0.0,
+            90.0,
+            15.0,
+            1.0,
+            "savings_rate_person_2_pct",
+        ) / 100.0
+        income_growth_person_1 = slider_with_number_input(
+            "Income growth - Person 1 (% / year)",
+            0.0,
+            15.0,
+            2.5,
+            0.5,
+            "income_growth_person_1_pct",
+        ) / 100.0
+        income_growth_person_2 = slider_with_number_input(
+            "Income growth - Person 2 (% / year)",
+            0.0,
+            15.0,
+            2.5,
+            0.5,
+            "income_growth_person_2_pct",
+        ) / 100.0
+        annual_income = annual_income_person_1 + annual_income_person_2
+        total_annual_savings = (
+            annual_income_person_1 * savings_rate_person_1
+            + annual_income_person_2 * savings_rate_person_2
+        )
+        savings_rate = (total_annual_savings / annual_income) if annual_income > 0 else 0.0
+        total_income_growth_weighted = (
+            annual_income_person_1 * income_growth_person_1
+            + annual_income_person_2 * income_growth_person_2
+        )
+        income_growth = (total_income_growth_weighted / annual_income) if annual_income > 0 else 0.0
+        st.write(f"Combined annual income (before tax): ZAR {annual_income:,.0f}")
+        st.write(f"Combined savings rate: {savings_rate * 100:.1f}%")
+        st.write(f"Combined income growth above inflation: {income_growth * 100:.1f}%")
+    else:
+        annual_income = st.number_input("Annual income (before tax) (ZAR)", min_value=0.0, value=260000.0, step=10000.0)
+        savings_rate = slider_with_number_input("Initial savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
+        income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 2.5, 0.5, "income_growth_pct") / 100.0
 
     st.subheader("Spending")
-    annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_income*(1-savings_rate), step=10000.0, disabled = True)
+    annual_expenses_default = annual_income * (1 - savings_rate)
+    annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_expenses_default, step=10000.0, disabled = True)
     expense_growth = slider_with_number_input("Expense growth above inflation (% / year)", 0.0, 15.0, 1.5, 0.5, "expense_growth_pct") / 100.0
     
     withdrawal_rate = slider_with_number_input("Safe withdrawal rate (%)", 2.5, 6.0, 4.0, 0.1, "withdrawal_rate_pct") / 100.0
@@ -146,7 +213,10 @@ with st.sidebar:
 
     st.subheader("Allocation of Savings")
     savings_rate_pct = savings_rate * 100.0
-    tfsa_income_cap_pct = (TFSA_ANNUAL_CAP / annual_income * 100.0) if annual_income > 0 else 0.0
+    household_multiplier = 2.0 if dual_income else 1.0
+    tfsa_annual_cap = TFSA_ANNUAL_CAP * household_multiplier
+    tfsa_lifetime_cap = TFSA_LIFETIME_CAP * household_multiplier
+    tfsa_income_cap_pct = (tfsa_annual_cap / annual_income * 100.0) if annual_income > 0 else 0.0
     tfsa_slider_max = min(savings_rate_pct, tfsa_income_cap_pct)
     alloc_tfsa = slider_with_number_input(
         "TFSA allocation (% of income)",
@@ -156,7 +226,10 @@ with st.sidebar:
         1.0,
         "alloc_tfsa_pct_income",
     )
-    st.caption("💡 Tax-Free Savings Account: Annual limit R46,000 | Lifetime limit R500,000. Growth and withdrawals are tax-free.", help="TFSA Info")
+    st.caption(
+        f"💡 Tax-Free Savings Account: Annual limit R{tfsa_annual_cap:,.0f} | Lifetime limit R{tfsa_lifetime_cap:,.0f}. Growth and withdrawals are tax-free.",
+        help="TFSA Info",
+    )
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * annual_income/12:,.2f}")
     
@@ -232,6 +305,7 @@ inputs = Inputs(
     expense_growth=float(expense_growth),
     annual_expenses=float(annual_expenses),
     withdrawal_rate=float(withdrawal_rate),
+    dual_income=bool(dual_income),
 )
 
 
@@ -273,8 +347,11 @@ def project(inputs: Inputs) -> pd.DataFrame:
         }
 
         # Calculate remaining TFSA room based on cumulative contributions (not balance)
-        tfsa_remaining_lifetime = max(0.0, TFSA_LIFETIME_CAP - tfsa_cumulative_contributions)
-        tfsa_allowed = min(TFSA_ANNUAL_CAP, tfsa_remaining_lifetime)
+        household_multiplier = 2.0 if inputs.dual_income else 1.0
+        tfsa_annual_cap = TFSA_ANNUAL_CAP * household_multiplier
+        tfsa_lifetime_cap = TFSA_LIFETIME_CAP * household_multiplier
+        tfsa_remaining_lifetime = max(0.0, tfsa_lifetime_cap - tfsa_cumulative_contributions)
+        tfsa_allowed = min(tfsa_annual_cap, tfsa_remaining_lifetime)
         tfsa_contribution = min(contributions["TFSA"], tfsa_allowed)
         tfsa_excess = contributions["TFSA"] - tfsa_contribution
 
@@ -364,7 +441,7 @@ st.subheader("Initial Tax & Expenses Summary")
 annual_savings = inputs.annual_income * inputs.savings_rate
 ra_contribution = annual_savings * inputs.allocation["RA"]
 taxable_income = inputs.annual_income - ra_contribution
-income_tax = calculate_tax(taxable_income)
+income_tax = calculate_tax(taxable_income, dual_income=inputs.dual_income)
 after_tax_income = inputs.annual_income - income_tax
 after_tax_expenses = after_tax_income - annual_savings
 
@@ -397,7 +474,7 @@ retirement_net_worth = retirement_row["NetWorth"]
 retirement_fire_number = retirement_row["FireNumber"]
 retirement_expenses = inputs.withdrawal_rate * retirement_net_worth
 retirement_taxable_income = retirement_expenses
-retirement_income_tax = calculate_tax(retirement_taxable_income)
+retirement_income_tax = calculate_tax(retirement_taxable_income, dual_income=inputs.dual_income)
 retirement_after_tax_income = retirement_expenses - retirement_income_tax
 col1, col2, col3, col4 = st.columns(4)
 with col1:
