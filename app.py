@@ -173,11 +173,11 @@ with st.sidebar:
     st.subheader("Income & Savings")
     annual_income = st.number_input("Annual income (before tax) (ZAR)", min_value=0.0, value=260000.0, step=10000.0)
     savings_rate = slider_with_number_input("Savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
-    income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 4.5, 2.5, "income_growth_pct") / 100.0
+    income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 2.5, 0.5, "income_growth_pct") / 100.0
 
     st.subheader("Spending")
     annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_income*(1-savings_rate), step=10000.0, disabled = True)
-    expense_growth = slider_with_number_input("Expense growth above inflation (% / year)", 0.0, 15.0, 1.0, 2., "expense_growth_pct") / 100.0
+    expense_growth = slider_with_number_input("Expense growth above inflation (% / year)", 0.0, 15.0, 1.5, 0.5, "expense_growth_pct") / 100.0
     
     withdrawal_rate = slider_with_number_input("Safe withdrawal rate (%)", 2.5, 6.0, 4.0, 0.1, "withdrawal_rate_pct") / 100.0
     

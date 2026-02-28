@@ -44,6 +44,14 @@ streamlit run app.py
 
 The app will open in your browser at `http://localhost:8501`
 
+## Running Tests
+
+Run the calculation sense-check tests with:
+
+```bash
+pytest -q
+```
+
 ## Input Parameters
 
 ### Personal Information
