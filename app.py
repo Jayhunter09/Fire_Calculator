@@ -172,7 +172,7 @@ with st.sidebar:
 
     st.subheader("Income & Savings")
     annual_income = st.number_input("Annual income (before tax) (ZAR)", min_value=0.0, value=260000.0, step=10000.0)
-    savings_rate = slider_with_number_input("Savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
+    savings_rate = slider_with_number_input("Initial savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
     income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 2.5, 0.5, "income_growth_pct") / 100.0
 
     st.subheader("Spending")
