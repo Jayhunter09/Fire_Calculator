@@ -68,22 +68,6 @@ def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(max_value, float(value)))
 
 
-def sync_from_number(base_key: str, min_value: float, max_value: float) -> None:
-    number_key = f"{base_key}_number"
-    slider_key = f"{base_key}_slider"
-    clamped = clamp(st.session_state[number_key], min_value, max_value)
-    st.session_state[number_key] = clamped
-    st.session_state[slider_key] = clamped
-
-
-def sync_from_slider(base_key: str, min_value: float, max_value: float) -> None:
-    number_key = f"{base_key}_number"
-    slider_key = f"{base_key}_slider"
-    clamped = clamp(st.session_state[slider_key], min_value, max_value)
-    st.session_state[slider_key] = clamped
-    st.session_state[number_key] = clamped
-
-
 def slider_with_number_input(
     label: str,
     min_value: float,
@@ -96,7 +80,6 @@ def slider_with_number_input(
     fixed_value: float | None = None,
 ) -> float:
     slider_key = f"{key}_slider"
-    number_key = f"{key}_number"
     if max_value < min_value:
         max_value = min_value
     fixed_range = math.isclose(min_value, max_value, abs_tol=max(step / 10.0, 1e-9))
@@ -104,55 +87,33 @@ def slider_with_number_input(
 
     if slider_key not in st.session_state:
         st.session_state[slider_key] = initial_value
-    if number_key not in st.session_state:
-        st.session_state[number_key] = initial_value
 
     if fixed_value is not None or fixed_range:
         locked_value = min_value if fixed_value is None else fixed_value
         fixed_clamped = clamp(locked_value, min_value, max_value)
         st.session_state[slider_key] = fixed_clamped
-        st.session_state[number_key] = fixed_clamped
     else:
         st.session_state[slider_key] = clamp(st.session_state[slider_key], min_value, max_value)
-        st.session_state[number_key] = clamp(st.session_state[number_key], min_value, max_value)
-        if not math.isclose(st.session_state[slider_key], st.session_state[number_key], abs_tol=max(step / 10.0, 1e-9)):
-            st.session_state[number_key] = st.session_state[slider_key]
 
-    slider_col, input_col = st.columns([3, 1])
-    with slider_col:
-        if fixed_range:
-            st.slider(
-                label,
-                min_value=min_value,
-                max_value=min_value + step,
-                value=min_value,
-                step=step,
-                disabled=True,
-                help=help_text,
-            )
-        else:
-            st.slider(
-                label,
-                min_value=min_value,
-                max_value=max_value,
-                step=step,
-                key=slider_key,
-                disabled=disabled,
-                help=help_text,
-                on_change=sync_from_slider,
-                args=(key, min_value, max_value),
-            )
-    with input_col:
-        st.number_input(
-            f"{label} value",
+    if fixed_range:
+        st.slider(
+            label,
+            min_value=min_value,
+            max_value=min_value + step,
+            value=min_value,
+            step=step,
+            disabled=True,
+            help=help_text,
+        )
+    else:
+        st.slider(
+            label,
             min_value=min_value,
             max_value=max_value,
             step=step,
-            key=number_key,
+            key=slider_key,
             disabled=disabled,
-            label_visibility="collapsed",
-            on_change=sync_from_number,
-            args=(key, min_value, max_value),
+            help=help_text,
         )
 
     return float(st.session_state[slider_key])
