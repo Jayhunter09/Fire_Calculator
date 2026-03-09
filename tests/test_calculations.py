@@ -129,7 +129,7 @@ class TestCalculations(unittest.TestCase):
             retirement_age=41,
             current_net_worth=0.0,
             annual_income=60_000.0,
-            savings_rate=1.0,
+            savings_rate=(10_000.0 / 60_000.0),
             allocation={"TFSA": 1.0, "RA": 0.0, "Brokerage": 0.0},
             current_balances={"TFSA": 499_000.0, "RA": 0.0, "Brokerage": 0.0},
             expected_return=0.0,

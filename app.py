@@ -353,8 +353,8 @@ def project(inputs: Inputs) -> pd.DataFrame:
         age = inputs.current_age + year_index
         net_worth = sum(balances.values())
         fire_number = expenses / inputs.withdrawal_rate if inputs.withdrawal_rate > 0 else np.nan
-        annual_savings = max(0.0, income - expenses)
-        effective_savings_rate = (annual_savings / income) * 100 if income > 0 else 0.0
+        annual_invested = max(0.0, income * inputs.savings_rate)
+        effective_savings_rate = (annual_invested / income) * 100 if income > 0 else 0.0
 
         rows.append(
             {
@@ -372,7 +372,7 @@ def project(inputs: Inputs) -> pd.DataFrame:
         )
 
         contributions = {
-            name: annual_savings * inputs.allocation.get(name, 0.0) for name in ACCOUNT_NAMES
+            name: annual_invested * inputs.allocation.get(name, 0.0) for name in ACCOUNT_NAMES
         }
 
         # Calculate remaining TFSA room based on cumulative contributions (not balance)
