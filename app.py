@@ -28,6 +28,8 @@ class Inputs:
 ACCOUNT_NAMES = ["TFSA", "RA", "Brokerage"]
 TFSA_ANNUAL_CAP = 46000.0
 TFSA_LIFETIME_CAP = 500000.0
+RA_CAP_PCT = 27.5
+RA_ANNUAL_CAP = 450000.0
 
 # South African tax brackets (2024/2025)
 TAX_BRACKETS = [
@@ -71,6 +73,13 @@ def calculate_tax(taxable_income: float, dual_income: bool = False) -> float:
 
 def clamp(value: float, min_value: float, max_value: float) -> float:
     return max(min_value, min(max_value, float(value)))
+
+
+def max_savings_rate_pct(annual_income: float, dual_income: bool = False) -> float:
+    if annual_income <= 0:
+        return 0.0
+    after_tax_income = max(0.0, annual_income - calculate_tax(annual_income, dual_income=dual_income))
+    return max(0.0, min(100.0, (after_tax_income / annual_income) * 100.0))
 
 
 def slider_with_number_input(
@@ -151,19 +160,21 @@ with st.sidebar:
             value=260000.0,
             step=10000.0,
         )
+        max_savings_rate_person_1_pct = max_savings_rate_pct(annual_income_person_1)
+        max_savings_rate_person_2_pct = max_savings_rate_pct(annual_income_person_2)
         savings_rate_person_1 = slider_with_number_input(
             "Savings rate - Person 1 (% of income)",
             0.0,
-            90.0,
-            15.0,
+            max_savings_rate_person_1_pct,
+            min(15.0, max_savings_rate_person_1_pct),
             1.0,
             "savings_rate_person_1_pct",
         ) / 100.0
         savings_rate_person_2 = slider_with_number_input(
             "Savings rate - Person 2 (% of income)",
             0.0,
-            90.0,
-            15.0,
+            max_savings_rate_person_2_pct,
+            min(15.0, max_savings_rate_person_2_pct),
             1.0,
             "savings_rate_person_2_pct",
         ) / 100.0
@@ -194,16 +205,29 @@ with st.sidebar:
             + annual_income_person_2 * income_growth_person_2
         )
         income_growth = (total_income_growth_weighted / annual_income) if annual_income > 0 else 0.0
+        max_combined_savings_rate_pct = max_savings_rate_pct(annual_income, dual_income=dual_income)
         st.write(f"Combined annual income (before tax): ZAR {annual_income:,.0f}")
         st.write(f"Combined savings rate: {savings_rate * 100:.1f}%")
+        st.caption(f"Combined max savings rate based on after-tax income: {max_combined_savings_rate_pct:.1f}%")
         st.write(f"Combined income growth above inflation: {income_growth * 100:.1f}%")
     else:
         annual_income = st.number_input("Annual income (before tax) (ZAR)", min_value=0.0, value=260000.0, step=10000.0)
-        savings_rate = slider_with_number_input("Initial savings rate (% of income)", 0.0, 90.0, 15.0, 1.0, "savings_rate_pct") / 100.0
+        max_savings_rate_single_pct = max_savings_rate_pct(annual_income, dual_income=dual_income)
+        savings_rate = slider_with_number_input(
+            "Initial savings rate (% of income)",
+            0.0,
+            max_savings_rate_single_pct,
+            min(15.0, max_savings_rate_single_pct),
+            1.0,
+            "savings_rate_pct",
+        ) / 100.0
+        st.caption(f"Max savings rate based on after-tax income: {max_savings_rate_single_pct:.1f}%")
         income_growth = slider_with_number_input("Income growth above inflation (% / year)", 0.0, 15.0, 2.5, 0.5, "income_growth_pct") / 100.0
 
     st.subheader("Spending")
-    annual_expenses_default = annual_income * (1 - savings_rate)
+    estimated_income_tax = calculate_tax(annual_income, dual_income=dual_income)
+    estimated_after_tax_income = annual_income - estimated_income_tax
+    annual_expenses_default = max(0.0, estimated_after_tax_income - (annual_income * savings_rate))
     annual_expenses = st.number_input("Annual expenses (ZAR)", min_value=0.0, value=annual_expenses_default, step=10000.0, disabled = True)
     expense_growth = slider_with_number_input("Expense growth above inflation (% / year)", 0.0, 15.0, 1.5, 0.5, "expense_growth_pct") / 100.0
     
@@ -234,15 +258,20 @@ with st.sidebar:
     st.write(f"Monthly TFSA amount: ZAR {alloc_tfsa / 100.0 * annual_income/12:,.2f}")
     
     remaining_after_tfsa = max(0.0, savings_rate_pct - alloc_tfsa)
+    ra_income_cap_pct = (RA_ANNUAL_CAP / annual_income * 100.0) if annual_income > 0 else 0.0
+    ra_slider_max = min(remaining_after_tfsa, RA_CAP_PCT, ra_income_cap_pct)
     alloc_ra = slider_with_number_input(
         "RA allocation (% of income)",
         0.0,
-        remaining_after_tfsa,
-        min(remaining_after_tfsa, 10.0),
+        ra_slider_max,
+        min(ra_slider_max, 10.0),
         1.0,
         "alloc_ra_pct_income",
     )
-    st.caption("💡 Retirement Annuity: Tax-deductible contributions up to 27.5% of income. Funds are locked until retirement.", help="RA Info")
+    st.caption(
+        f"💡 Retirement Annuity: Tax-deductible contributions up to {RA_CAP_PCT:.1f}% of income or ZAR {RA_ANNUAL_CAP:,.0f} per year, whichever is lower. Funds are locked until retirement.",
+        help="RA Info",
+    )
     #add a box that shows the value being added to the account based on the allocation
     st.write(f"Monthly RA amount: ZAR {alloc_ra / 100.0 * annual_income/12:,.2f}")
     
@@ -357,6 +386,12 @@ def project(inputs: Inputs) -> pd.DataFrame:
 
         contributions["TFSA"] = tfsa_contribution
         contributions["Brokerage"] += tfsa_excess
+
+        ra_allowed = min((RA_CAP_PCT / 100.0) * income, RA_ANNUAL_CAP)
+        ra_contribution = min(contributions["RA"], ra_allowed)
+        ra_excess = contributions["RA"] - ra_contribution
+        contributions["RA"] = ra_contribution
+        contributions["Brokerage"] += ra_excess
         
         # Track cumulative TFSA contributions
         tfsa_cumulative_contributions += tfsa_contribution

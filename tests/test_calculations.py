@@ -21,12 +21,15 @@ def load_calculation_symbols() -> types.SimpleNamespace:
         "ACCOUNT_NAMES",
         "TFSA_ANNUAL_CAP",
         "TFSA_LIFETIME_CAP",
+        "RA_CAP_PCT",
+        "RA_ANNUAL_CAP",
         "TAX_BRACKETS",
         "Tax_Rebate",
     }
     wanted_defs = {
         "Inputs",
         "calculate_tax",
+        "max_savings_rate_pct",
         "project",
         "format_number",
     }
@@ -79,6 +82,20 @@ class TestCalculations(unittest.TestCase):
         expected_dual = max(0.0, (taxable_income * 0.18) - (CALC.Tax_Rebate * 2))
         self.assertAlmostEqual(dual_tax, expected_dual, places=2)
         self.assertLess(dual_tax, single_tax)
+
+    def test_max_savings_rate_pct_is_capped_by_after_tax_income(self) -> None:
+        annual_income = 260_000.0
+        expected_cap_pct = (
+            (annual_income - CALC.calculate_tax(annual_income, dual_income=False))
+            / annual_income
+        ) * 100.0
+
+        self.assertAlmostEqual(
+            CALC.max_savings_rate_pct(annual_income, dual_income=False),
+            expected_cap_pct,
+            places=6,
+        )
+        self.assertEqual(CALC.max_savings_rate_pct(0.0), 0.0)
 
     def test_project_tracks_balances_with_tfsa_annual_cap(self) -> None:
         inputs = CALC.Inputs(
@@ -146,6 +163,26 @@ class TestCalculations(unittest.TestCase):
         df = CALC.project(inputs)
         self.assertEqual(df.iloc[1]["TFSA_Balance"], 92_000.0)
         self.assertEqual(df.iloc[1]["Brokerage_Balance"], 108_000.0)
+
+    def test_project_caps_ra_and_redirects_excess_to_brokerage(self) -> None:
+        inputs = CALC.Inputs(
+            current_age=35,
+            retirement_age=36,
+            current_net_worth=0.0,
+            annual_income=1_000_000.0,
+            savings_rate=1.0,
+            allocation={"TFSA": 0.0, "RA": 1.0, "Brokerage": 0.0},
+            current_balances={"TFSA": 0.0, "RA": 0.0, "Brokerage": 0.0},
+            expected_return=0.0,
+            income_growth=0.0,
+            expense_growth=0.0,
+            annual_expenses=0.0,
+            withdrawal_rate=0.04,
+        )
+
+        df = CALC.project(inputs)
+        self.assertEqual(df.iloc[1]["RA_Balance"], 275_000.0)
+        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 725_000.0)
 
     def test_format_number_truncates_to_nearest_thousand(self) -> None:
         self.assertEqual(CALC.format_number(123_456), "123 000")
