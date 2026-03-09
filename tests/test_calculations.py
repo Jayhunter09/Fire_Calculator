@@ -97,6 +97,56 @@ class TestCalculations(unittest.TestCase):
         )
         self.assertEqual(CALC.max_savings_rate_pct(0.0), 0.0)
 
+    def test_project_initial_savings_rate_matches_input_baseline(self) -> None:
+        annual_income = 260_000.0
+        savings_rate = 0.15
+        baseline_tax = CALC.calculate_tax(annual_income, dual_income=False)
+        annual_expenses = (annual_income - baseline_tax) - (annual_income * savings_rate)
+
+        inputs = CALC.Inputs(
+            current_age=30,
+            retirement_age=31,
+            current_net_worth=0.0,
+            annual_income=annual_income,
+            savings_rate=savings_rate,
+            allocation={"TFSA": 0.0, "RA": 0.0, "Brokerage": 1.0},
+            current_balances={"TFSA": 0.0, "RA": 0.0, "Brokerage": 0.0},
+            expected_return=0.0,
+            income_growth=0.0,
+            expense_growth=0.0,
+            annual_expenses=annual_expenses,
+            withdrawal_rate=0.04,
+            dual_income=False,
+        )
+
+        df = CALC.project(inputs)
+        self.assertAlmostEqual(df.iloc[0]["Savings Rate"], 15.0, places=2)
+
+    def test_project_savings_rate_changes_with_income_and_expense_growth(self) -> None:
+        annual_income = 260_000.0
+        savings_rate = 0.15
+        baseline_tax = CALC.calculate_tax(annual_income, dual_income=False)
+        annual_expenses = (annual_income - baseline_tax) - (annual_income * savings_rate)
+
+        inputs = CALC.Inputs(
+            current_age=30,
+            retirement_age=31,
+            current_net_worth=0.0,
+            annual_income=annual_income,
+            savings_rate=savings_rate,
+            allocation={"TFSA": 0.0, "RA": 0.0, "Brokerage": 1.0},
+            current_balances={"TFSA": 0.0, "RA": 0.0, "Brokerage": 0.0},
+            expected_return=0.0,
+            income_growth=0.10,
+            expense_growth=0.0,
+            annual_expenses=annual_expenses,
+            withdrawal_rate=0.04,
+            dual_income=False,
+        )
+
+        df = CALC.project(inputs)
+        self.assertGreater(df.iloc[1]["Savings Rate"], df.iloc[0]["Savings Rate"])
+
     def test_project_tracks_balances_with_tfsa_annual_cap(self) -> None:
         inputs = CALC.Inputs(
             current_age=30,
@@ -118,10 +168,10 @@ class TestCalculations(unittest.TestCase):
         self.assertEqual(len(df), 3)
         self.assertEqual(df.iloc[0]["NetWorth"], 0.0)
         self.assertEqual(df.iloc[1]["TFSA_Balance"], 46_000.0)
-        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 4_000.0)
+        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 3_820.0)
         self.assertEqual(df.iloc[2]["TFSA_Balance"], 92_000.0)
-        self.assertEqual(df.iloc[2]["Brokerage_Balance"], 8_000.0)
-        self.assertEqual(df.iloc[2]["NetWorth"], 100_000.0)
+        self.assertEqual(df.iloc[2]["Brokerage_Balance"], 7_640.0)
+        self.assertEqual(df.iloc[2]["NetWorth"], 99_640.0)
 
     def test_project_respects_tfsa_lifetime_cap(self) -> None:
         inputs = CALC.Inputs(
@@ -162,7 +212,7 @@ class TestCalculations(unittest.TestCase):
 
         df = CALC.project(inputs)
         self.assertEqual(df.iloc[1]["TFSA_Balance"], 92_000.0)
-        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 108_000.0)
+        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 107_640.0)
 
     def test_project_caps_ra_and_redirects_excess_to_brokerage(self) -> None:
         inputs = CALC.Inputs(
@@ -182,7 +232,7 @@ class TestCalculations(unittest.TestCase):
 
         df = CALC.project(inputs)
         self.assertEqual(df.iloc[1]["RA_Balance"], 275_000.0)
-        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 725_000.0)
+        self.assertEqual(df.iloc[1]["Brokerage_Balance"], 436_707.1)
 
     def test_format_number_truncates_to_nearest_thousand(self) -> None:
         self.assertEqual(CALC.format_number(123_456), "123 000")

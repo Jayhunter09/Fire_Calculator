@@ -353,7 +353,9 @@ def project(inputs: Inputs) -> pd.DataFrame:
         age = inputs.current_age + year_index
         net_worth = sum(balances.values())
         fire_number = expenses / inputs.withdrawal_rate if inputs.withdrawal_rate > 0 else np.nan
-        annual_invested = max(0.0, income * inputs.savings_rate)
+        projected_income_tax = calculate_tax(income, dual_income=inputs.dual_income)
+        projected_after_tax_income = income - projected_income_tax
+        annual_invested = max(0.0, projected_after_tax_income - expenses)
         effective_savings_rate = (annual_invested / income) * 100 if income > 0 else 0.0
 
         rows.append(
